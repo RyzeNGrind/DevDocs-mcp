@@ -4,6 +4,60 @@ from pydantic import BaseModel
 from crawl4ai import BrowserConfig, CrawlerRunConfig, CacheMode
 from crawl4ai.content_filter_strategy import PruningContentFilter
 from crawl4ai.markdown_generation_strategy import DefaultMarkdownGenerator
+import os
+
+# Environment-based configuration
+class NetworkConfig:
+    """Network configuration with dynamic ports and hosts"""
+    
+    # Server configuration
+    HOST = os.environ.get("BACKEND_HOST", "0.0.0.0")
+    PORT = int(os.environ.get("BACKEND_PORT", "24125"))
+    
+    # MCP server configuration
+    MCP_HOST = os.environ.get("MCP_HOST", "mcp")
+    MCP_PORT = int(os.environ.get("MCP_PORT", "8787"))
+    
+    # Crawler service configuration
+    CRAWL4AI_URL = os.environ.get("CRAWL4AI_URL", "http://crawl4ai:11235")
+    CRAWL4AI_API_TOKEN = os.environ.get("CRAWL4AI_API_TOKEN", "devdocs-demo-key")
+    
+    # Frontend configuration (CORS origins)
+    FRONTEND_URLS = [
+        url.strip()
+        for url in os.environ.get(
+            "ALLOWED_ORIGINS", 
+            "http://localhost:3000,http://localhost:3001,http://127.0.0.1:3000,http://127.0.0.1:3001,http://frontend:3001"
+        ).split(",")
+    ]
+    
+    # Storage configuration  
+    STORAGE_PATH = os.environ.get("STORAGE_PATH", "storage")
+    MARKDOWN_DIR = os.environ.get("MARKDOWN_DIR", os.path.join(STORAGE_PATH, "markdown"))
+    HTML_DIR = os.environ.get("HTML_DIR", os.path.join(STORAGE_PATH, "html"))
+    
+    @classmethod
+    def get_mcp_url(cls) -> str:
+        """Get the MCP server URL"""
+        return f"http://{cls.MCP_HOST}:{cls.MCP_PORT}"
+    
+    @classmethod
+    def get_backend_url(cls) -> str:
+        """Get the backend server URL for self-reference"""
+        return f"http://{cls.HOST}:{cls.PORT}"
+    
+    @classmethod
+    def get_crawl4ai_url(cls) -> str:
+        """Get the Crawl4AI service URL"""
+        return cls.CRAWL4AI_URL
+    
+    @classmethod
+    def create_dirs(cls) -> None:
+        """Create necessary directories"""
+        os.makedirs(cls.MARKDOWN_DIR, exist_ok=True)
+        os.makedirs(cls.HTML_DIR, exist_ok=True)
+        os.makedirs("logs", exist_ok=True)
+        os.makedirs("crawl_results", exist_ok=True)
 
 class CrawlConfigManager:
     """Manages unified configuration for crawling operations"""

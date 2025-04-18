@@ -1,4 +1,31 @@
-     import { NextResponse } from 'next/server'
+import { NextResponse } from 'next/server'
+
+// Helper function to retry a fetch operation
+async function fetchWithRetry(url: string, options: RequestInit, maxRetries: number = 3, delay: number = 1000) {
+  let lastError: Error | null = null;
+  
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      console.log(`Attempt ${attempt + 1}/${maxRetries} to fetch ${url}`);
+      const response = await fetch(url, options);
+      return response;
+    } catch (error) {
+      console.error(`Attempt ${attempt + 1} failed:`, error);
+      lastError = error as Error;
+      
+      // Only wait if we're going to retry
+      if (attempt < maxRetries - 1) {
+        console.log(`Waiting ${delay}ms before next attempt...`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+        // Exponential backoff
+        delay *= 2;
+      }
+    }
+  }
+  
+  // All retries failed
+  throw lastError || new Error(`Failed to fetch ${url} after ${maxRetries} attempts`);
+}
 
 export async function POST(request: Request) {
   try {
@@ -21,18 +48,44 @@ export async function POST(request: Request) {
     console.log('Using internal backend URL:', INTERNAL_BACKEND_URL);
     
     console.log('Sending request to backend API:', `${INTERNAL_BACKEND_URL}/api/discover`);
-    const response = await fetch(`${INTERNAL_BACKEND_URL}/api/discover`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
+    
+    // First, perform a connectivity test to the target URL
+    try {
+      console.log(`Testing direct connectivity to ${url}`);
+      const directResponse = await fetch(url, { 
+        method: 'GET',
+        headers: { 'User-Agent': 'DevDocs-Crawler/1.0' }
+      });
+      console.log(`Direct connectivity test status: ${directResponse.status}`);
+    } catch (error) {
+      console.warn(`Direct connectivity test failed: ${error instanceof Error ? error.message : String(error)}`);
+      // We continue anyway, as the backend might have different network access
+    }
+    
+    // Use the retry function for backend requests
+    const response = await fetchWithRetry(
+      `${INTERNAL_BACKEND_URL}/api/discover`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ url, depth: validatedDepth }),
       },
-      body: JSON.stringify({ url, depth: validatedDepth }),
-    })
+      3, // max retries
+      1000 // initial delay in ms
+    );
     
     console.log('Response status from backend:', response.status)
     
     if (!response.ok) {
-      const errorData = await response.json()
+      let errorData;
+      try {
+        errorData = await response.json();
+      } catch (e) {
+        errorData = { error: 'Failed to parse error response' };
+      }
+      
       console.error('Error response from backend:', errorData)
       return NextResponse.json(
         { error: errorData.error || 'Failed to discover pages' },
@@ -65,11 +118,31 @@ export async function POST(request: Request) {
       // Check for network-related errors
       if (error.message.includes('fetch') || error.message.includes('network') || error.message.includes('ECONNREFUSED')) {
         console.error('Network error detected - possible connection issue to backend service')
+        
+        return NextResponse.json(
+          {
+            error: 'Network error - Unable to connect to backend service',
+            details: error.message,
+            errorType: error.name,
+            pages: []
+          },
+          { status: 503 } // Service Unavailable
+        )
       }
       
       // Check for timeout errors
       if (error.message.includes('timeout')) {
         console.error('Timeout error detected - backend service might be taking too long to respond')
+        
+        return NextResponse.json(
+          {
+            error: 'Request timed out - Backend service took too long to respond',
+            details: error.message,
+            errorType: error.name,
+            pages: []
+          },
+          { status: 504 } // Gateway Timeout
+        )
       }
     }
     

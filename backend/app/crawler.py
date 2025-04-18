@@ -4,6 +4,8 @@ import sys
 import asyncio
 import os
 import requests
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 import json
 from datetime import datetime
 from pydantic import BaseModel
@@ -12,6 +14,7 @@ import re
 # Import status management functions
 from .status_manager import update_overall_status, update_url_status # Removed set_task_context import
 from .utils import normalize_url # Import from utils
+from .config import NetworkConfig
 
 
 # Configure logging
@@ -20,19 +23,30 @@ logger = logging.getLogger(__name__)
 # Increase recursion limit for complex pages
 sys.setrecursionlimit(10000)
 
-# Get Crawl4AI API URL and token from environment variables
-# Note: In Docker, we should use the container name, not localhost
-CRAWL4AI_URL = os.environ.get("CRAWL4AI_URL", "http://crawl4ai:11235")
+# Get Crawl4AI URL and token from config
+CRAWL4AI_URL = NetworkConfig.get_crawl4ai_url()
 logger.info(f"Using Crawl4AI URL: {CRAWL4AI_URL}")
 
-# Hard-code a default API key for testing
-# This is a temporary solution for development/testing only
-DEFAULT_API_KEY = "devdocs-demo-key"
-CRAWL4AI_API_TOKEN = os.environ.get("CRAWL4AI_API_TOKEN", DEFAULT_API_KEY)
+# Get API token from config
+CRAWL4AI_API_TOKEN = NetworkConfig.CRAWL4AI_API_TOKEN
 
 # Set up headers for API requests
 headers = {"Authorization": f"Bearer {CRAWL4AI_API_TOKEN}"}
 logger.info(f"API token is {'set' if CRAWL4AI_API_TOKEN else 'not set'}")
+
+# Create a session with retries
+session = requests.Session()
+retries = Retry(
+    total=5,  # Total number of retries
+    backoff_factor=0.5,  # Time factor between retries
+    status_forcelist=[429, 500, 502, 503, 504],  # Retry on these status codes
+    allowed_methods=["GET", "POST"],  # Methods to retry
+)
+session.mount("http://", HTTPAdapter(max_retries=retries))
+session.mount("https://", HTTPAdapter(max_retries=retries))
+
+# Set timeout for all requests
+timeout = 30
 
 class InternalLink(BaseModel):
     href: str
@@ -184,12 +198,28 @@ async def discover_pages(
         result = None
 
         try:
-            # Submit job to Crawl4AI
-            response = requests.post(
+            # First try direct fetch to verify network connectivity
+            logger.info(f"Testing direct connectivity to {url}")
+            try:
+                direct_response = session.get(url, timeout=10)
+                logger.info(f"Direct connectivity test to {url}: status={direct_response.status_code}")
+                if direct_response.status_code >= 400:
+                    logger.warning(f"Direct connectivity test returned error status: {direct_response.status_code}")
+            except requests.RequestException as e:
+                logger.warning(f"Direct connectivity test failed: {str(e)}")
+                
+            # Submit job to Crawl4AI with improved error handling
+            logger.info(f"Submitting request to Crawl4AI: {CRAWL4AI_URL}/crawl")
+            # Log full request details for debugging
+            logger.debug(f"Request headers: {headers}")
+            logger.debug(f"Request body: {simple_request}")
+            
+            # Use our session with retries
+            response = session.post(
                 f"{CRAWL4AI_URL}/crawl",
                 headers=headers,
                 json=simple_request,
-                timeout=30
+                timeout=timeout
             )
             
             # Log the response status and headers
@@ -412,6 +442,30 @@ async def crawl_pages(pages: List[DiscoveredPage], root_url: str = None, job_id:
                 # No longer replacing docs.crawl4ai.com URLs
                 url = page.url
                 logger.info(f"Processing URL: {url} without replacement")
+
+                # Test direct connectivity to the URL first
+                logger.info(f"Testing direct connectivity to {url}")
+                try:
+                    direct_response = session.get(url, timeout=10)
+                    if direct_response.status_code >= 400:
+                        logger.warning(f"URL {url} returned status code {direct_response.status_code}")
+                    else:
+                        logger.info(f"Successfully connected to {url} with status {direct_response.status_code}")
+                        
+                        # Save the HTML content for potential fallback
+                        logger.info(f"Saving HTML content from {url} for potential fallback")
+                        html_content = direct_response.text
+                        html_file_path = f"storage/html/{url_to_filename(url)}.html"
+                        os.makedirs(os.path.dirname(html_file_path), exist_ok=True)
+                        with open(html_file_path, "w", encoding="utf-8") as f:
+                            f.write(html_content)
+                            
+                except requests.RequestException as e:
+                    logger.error(f"Failed to connect directly to {url}: {str(e)}")
+                    if job_id:
+                        update_url_status(job_id, normalize_url(url), 'crawl_error', error_message=f"Direct connection failed: {str(e)}")
+                    errors += 1
+                    continue  # Skip this URL if direct connectivity fails
                 
                 # Simplify the request for testing
                 # The error in the logs shows that there's an issue with the 'magic' parameter
@@ -431,12 +485,15 @@ async def crawl_pages(pages: List[DiscoveredPage], root_url: str = None, job_id:
                 # Log environment variables for debugging
                 logger.info(f"CRAWL4AI_URL environment variable: {os.environ.get('CRAWL4AI_URL', 'Not set')}")
                 logger.info(f"CRAWL4AI_API_TOKEN environment variable: {'Set' if os.environ.get('CRAWL4AI_API_TOKEN') else 'Not set'}")
-                response = requests.post(
+                
+                # Use session with retries
+                response = session.post(
                     f"{CRAWL4AI_URL}/crawl", 
                     headers=headers, 
                     json=simple_request,
-                    timeout=30
+                    timeout=timeout  # Use the global timeout
                 )
+                
                 response.raise_for_status()
                 task_id = response.json()["task_id"]
                 logger.info(f"Submitted content crawl task for {url}, task ID: {task_id} (Job ID: {job_id})")

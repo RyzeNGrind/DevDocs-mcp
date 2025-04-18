@@ -1,6 +1,7 @@
 {
   "name": "devdocs-mcp",
   "version": "1.0.0",
+  "type": "module",
   "private": true,
   "scripts": {
     "deploy": "wrangler deploy",

@@ -32,12 +32,20 @@ services:
       - MCP_HOST=mcp
       - CRAWL4AI_URL=http://crawl4ai:11235
       - CRAWL4AI_API_TOKEN=${CRAWL4AI_API_TOKEN:-devdocs-demo-key}
+      - HTTP_PROXY=${HTTP_PROXY:-}
+      - HTTPS_PROXY=${HTTPS_PROXY:-}
+      - NO_PROXY=localhost,127.0.0.1,backend,mcp,crawl4ai
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
     depends_on:
       - crawl4ai
       - mcp
     networks:
       - devdocs-network
     restart: unless-stopped
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
 
   mcp:
     build:

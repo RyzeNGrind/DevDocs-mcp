@@ -1,41 +1,35 @@
 {
   "name": "devdocs-explorer",
-  "version": "0.1.0",
+  "version": "1.0.0",
+  "description": "DevDocs Explorer with MCP integration",
   "private": true,
+  "workspaces": [
+    "devdocs-mcp"
+  ],
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
-    "lint": "next lint"
+    "start": "node scripts/start.js",
+    "dev": "npm run dev:backend & npm run dev:mcp",
+    "dev:mcp": "cd devdocs-mcp && npm run dev",
+    "dev:backend": "cd backend && python -m app.main",
+    "setup": "node scripts/setup.js",
+    "build": "npm run build:mcp",
+    "build:mcp": "cd devdocs-mcp && npm run build",
+    "deploy": "npm run deploy:mcp",
+    "deploy:mcp": "cd devdocs-mcp && npm run deploy",
+    "test": "echo \"No tests configured\" && exit 0",
+    "clean": "node scripts/clean.js"
   },
-  "dependencies": {
-    "@emotion/react": "^11.14.0",
-    "@emotion/styled": "^11.14.0",
-    "@mui/icons-material": "^6.4.0",
-    "@mui/material": "^6.4.0",
-    "@radix-ui/react-checkbox": "^1.1.5",
-    "@radix-ui/react-dialog": "^1.1.7",
-    "@radix-ui/react-popover": "^1.1.7",
-    "@radix-ui/react-scroll-area": "^1.2.2",
-    "@radix-ui/react-slot": "^1.1.1",
-    "@radix-ui/react-toast": "^1.2.6",
-    "@radix-ui/react-tooltip": "^1.2.0",
-    "class-variance-authority": "^0.7.1",
-    "clsx": "^2.1.1",
-    "lucide-react": "^0.454.0",
-    "next": "15.1.4",
-    "react": "^19.0.0",
-    "react-dom": "^19.0.0",
-    "tailwind-merge": "^2.5.5",
-    "tailwindcss-animate": "^1.0.7"
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=8.0.0"
   },
   "devDependencies": {
-    "@types/node": "^22",
-    "@types/react": "^19.0.0",
-    "@types/react-dom": "^19.0.0",
-    "autoprefixer": "^10.4.20",
-    "postcss": "^8",
-    "tailwindcss": "^3.4.17",
-    "typescript": "^5"
+    "concurrently": "^8.2.2",
+    "cross-env": "^7.0.3",
+    "rimraf": "^5.0.5",
+    "fs-extra": "^11.2.0"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.0"
   }
 }

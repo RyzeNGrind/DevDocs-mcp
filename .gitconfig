@@ -1,0 +1,15 @@
+[filter "lfs"]
+	smudge = git-lfs smudge -- %f
+	process = git-lfs filter-process
+	required = true
+	clean = git-lfs clean -- %f	
+
+[gpg]
+	format = ssh
+[commit]
+	gpgsign = true
+[user]
+	name = RyzeNGrind
+	#email = admin@ryzengrind.xyz
+	email = 14363544+RyzeNGrind@users.noreply.github.com
+	signingkey = ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIPL6GOQ1zpvnxJK0Mz+vUHgEd0f/sDB0q3pa38yHHEsC

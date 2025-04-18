@@ -1,3 +1,270 @@
+# DevDocs Explorer
+
+A comprehensive solution for exploring web development documentation with AI assistant integration via the Model Context Protocol (MCP).
+
+## Project Structure
+
+The project follows a monorepo structure with clearly separated components:
+
+```
+/DevDocs/
+├── backend/                # Python FastAPI backend for documentation crawling and management
+│   ├── app/                # Backend application code
+│   │   ├── main.py         # FastAPI entry point and API routes
+│   │   ├── config.py       # Configuration with NetworkConfig for dynamic ports
+│   │   ├── crawler.py      # Web page discovery and crawling logic
+│   │   ├── status_manager.py # Manages job states and statuses
+│   │   └── utils.py        # Shared utility functions
+│   ├── venv/               # Python virtual environment
+│   └── requirements.txt    # Python dependencies
+├── devdocs-mcp/            # TypeScript MCP server for Cloudflare Workers
+│   ├── src/                # Source code
+│   │   ├── app.ts          # Hono app with API routes
+│   │   ├── config.ts       # Environment configuration module
+│   │   ├── index.ts        # Entry point and Durable Object definition
+│   │   └── integrations.ts # Integration with documentation services
+│   ├── static/             # Static files served by the MCP server
+│   │   └── index.html      # Landing page
+│   └── package.json        # MCP server dependencies
+├── scripts/                # Utility scripts for the monorepo
+│   ├── clean.js            # Cleanup redundancies and organize codebase
+│   ├── setup.js            # Set up the entire project and dependencies
+│   └── start.js            # Start all services with proper configuration
+├── storage/                # Shared storage (markdown and HTML files)
+│   ├── markdown/           # Markdown content for MCP
+│   └── html/               # HTML content
+├── .env                    # Environment variables for all services
+└── package.json            # Root project configuration
+```
+
+## Architecture
+
+The DevDocs Explorer uses a multi-tier architecture with several key components:
+
+### Backend Service (FastAPI)
+
+The Python backend handles crawling web documentation and converting it to markdown format:
+
+- **API Layer**: FastAPI provides REST endpoints for discovery, crawling, and status tracking
+- **Crawler Engine**: Responsible for crawling web pages and extracting content
+- **Storage Manager**: Handles file storage and organization
+- **Configuration System**: Uses environment variables for dynamic configuration
+
+### MCP Server (Cloudflare Workers)
+
+The TypeScript MCP server provides AI assistant integration:
+
+- **Durable Objects**: Maintains stateful connections with AI assistants
+- **MCP Protocol**: Implements the Model Context Protocol for AI tools
+- **API Routes**: Provides HTTP endpoints for various operations
+- **Fallback System**: Gracefully handles service unavailability
+
+### Integration Layer
+
+Connects the backend and MCP server:
+
+- **Shared Storage**: Both services use the same storage directory
+- **Configuration Bridge**: Environment variables connect the services
+- **Error Handling**: Services gracefully handle connection issues
+
+## Architectural Decisions
+
+### ADR-1: Monorepo Structure
+
+**Decision**: Use a monorepo approach with shared configuration and dependencies.
+
+**Rationale**:
+- Simplified deployment and management
+- Shared configuration between services
+- Single source of truth for documentation storage
+- Easier to maintain consistency across services
+
+### ADR-2: Dynamic Configuration
+
+**Decision**: Use environment variables and a centralized configuration system.
+
+**Rationale**:
+- Supports different deployment environments
+- Prevents hardcoded values that cause connection issues
+- Simplifies configuration management
+- Enables container-based deployment
+
+### ADR-3: Shared Storage
+
+**Decision**: Use a centralized storage directory structure with symlinks.
+
+**Rationale**:
+- Prevents duplication of data
+- Ensures consistency between services
+- Simplifies backup and management
+- Supports both local and containerized deployments
+
+### ADR-4: Cloudflare Workers for MCP
+
+**Decision**: Implement MCP server using Cloudflare Workers with Durable Objects.
+
+**Rationale**:
+- Serverless architecture reduces costs
+- Durable Objects provide necessary stateful connections
+- Global edge deployment for low latency
+- Free tier availability for development and personal use
+
+## Key Files and Their Functions
+
+### Backend (Python)
+
+- **app/main.py**: Main FastAPI application with API routes for crawling and documentation management
+- **app/config.py**: Configuration including NetworkConfig for dynamic ports and connection settings
+- **app/crawler.py**: Discovery and crawling logic for extracting documentation from websites
+- **app/status_manager.py**: Manages job status for asynchronous crawling operations
+
+### MCP Server (TypeScript)
+
+- **src/index.ts**: Entry point with Durable Object definition for the MCP server
+- **src/app.ts**: Hono app with routes for MCP communication and static file serving
+- **src/config.ts**: Environment-based configuration with validation and defaults
+- **src/integrations.ts**: Integration with documentation sources and services
+
+### Scripts (Node.js)
+
+- **scripts/setup.js**: Sets up the project, dependencies, and directory structure
+- **scripts/start.js**: Starts all services with proper environment configuration
+- **scripts/clean.js**: Cleans up redundancies and ensures proper organization
+
+## Agent Patterns Implementation
+
+DevDocs Explorer implements several Cloudflare Agent patterns within free tier limits:
+
+### 1. Prompt Chaining
+
+The MCP server supports prompt chaining by:
+- Converting documentation to structured markdown
+- Maintaining a hierarchy for documentation topics
+- Enabling step-by-step documentation exploration
+
+**Implementation**: `devdocs-mcp/src/index.ts` implements sequence management for document retrieval.
+
+### 2. Routing
+
+Intelligent classification and routing of user queries:
+- Query analysis to determine relevant documentation sections
+- Categorization by technology and topic
+- Fallback strategies for ambiguous queries
+
+**Implementation**: Handled in search functionality in `devdocs-mcp/src/integrations.ts`.
+
+### 3. Parallelization (Free Tier Optimized)
+
+Efficient concurrent operations within free tier limits:
+- Crawling multiple pages within rate limits
+- Batch processing of documentation updates
+- Staggered operations to prevent resource exhaustion
+
+**Implementation**: Crawler parallel operations in `backend/app/crawler.py`.
+
+### 4. State Management
+
+Durable Objects provide efficient state management:
+- Persistent connections with AI assistants
+- Transaction-based state updates
+- Efficient hibernation to minimize resource usage
+
+**Implementation**: Implemented in `devdocs-mcp/src/index.ts` with Durable Objects.
+
+## Free Tier Optimization
+
+The system is optimized to work within free tier limits:
+
+1. **Cloudflare Workers Free Tier**:
+   - 100,000 requests per day
+   - Up to 30 Workers scripts
+   - 128 MB of storage
+   - Automatic hibernation during inactivity
+
+2. **Resource Optimization**:
+   - Efficient caching strategies
+   - Document chunking to stay within size limits
+   - Batch operations to minimize request counts
+   - Rate limiting to prevent exceeding quotas
+
+3. **Storage Efficiency**:
+   - Compression of stored documentation
+   - Deduplication of common content
+   - Selective crawling to focus on essential content
+
+## Getting Started
+
+Follow these steps to set up and run the project:
+
+1. **Install dependencies**:
+
+```bash
+npm install
+```
+
+2. **Set up the project**:
+
+```bash
+npm run setup
+```
+
+3. **Start the services**:
+
+```bash
+npm start
+```
+
+4. **Access the services**:
+
+- MCP Server: http://localhost:8787
+- Backend API: http://localhost:24125
+
+## Connecting to AI Assistants
+
+### Claude
+
+To connect Claude to your MCP server:
+
+```bash
+npx mcp-remote http://localhost:8787/sse
+```
+
+### Cursor
+
+In Cursor settings:
+
+1. Go to `Settings > AI > Model Context Protocol`
+2. Add a new server with:
+   - Type: `command`
+   - Command: `npx mcp-remote http://localhost:8787/sse`
+
+## Deployment to Cloudflare
+
+For deploying the MCP server to Cloudflare Workers:
+
+1. Set up your Cloudflare account and Wrangler CLI
+2. Update your Cloudflare credentials:
+
+```bash
+npx wrangler login
+```
+
+3. Deploy to Cloudflare:
+
+```bash
+npm run deploy
+```
+
+4. Update your MCP connection URL to the deployed worker's URL
+
+## Contributing
+
+Contributions are welcome! Please see our [contribution guidelines](CONTRIBUTING.md) for details.
+
+## License
+
+MIT License - see the [LICENSE](LICENSE) file for details.
+
 # DevDocs by CyberAGI 🚀
 
 <div align="center">

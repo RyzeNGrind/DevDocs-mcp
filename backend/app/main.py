@@ -15,6 +15,7 @@ import asyncio
 from pathlib import Path
 # Removed duplicate datetime import from line 17
 from .crawler import discover_pages, crawl_pages, DiscoveredPage, CrawlResult, url_to_filename
+from .config import NetworkConfig
 
 # Configure logging
 logging.basicConfig(
@@ -23,6 +24,9 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 app = FastAPI(title="Crawl4AI Backend")
+
+# Create necessary directories using NetworkConfig
+NetworkConfig.create_dirs()
 
 # Import status management
 from .status_manager import (
@@ -35,16 +39,10 @@ from .status_manager import (
 )
 # Removed redundant app assignment
 
-# Configure CORS to allow requests from our frontend
+# Configure CORS to allow requests from our frontend using NetworkConfig
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",
-        "http://localhost:3001",
-        "http://127.0.0.1:3000",
-        "http://127.0.0.1:3001",
-        "http://frontend:3001",  # Allow requests from the frontend container
-    ],
+    allow_origins=NetworkConfig.FRONTEND_URLS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -123,16 +121,14 @@ async def health_check():
 async def get_mcp_config():
     """Get MCP server configuration"""
     try:
-        # TODO: Move this hardcoded config to a separate config file/env vars if more servers are added.
-        # This structure represents how the frontend expects to launch the MCP server
-        # via docker exec / stdio, not via host/port network connection.
+        # Use NetworkConfig for dynamic configuration
         config = {
             "mcpServers": {
                 "fast-markdown": {
                     "command": "docker",
                     "args": [
                         "exec", "-i", "devdocs-mcp", # Assuming 'devdocs-mcp' is the container name
-                        "python", "-m", "fast_markdown_mcp.server", "/app/storage/markdown"
+                        "python", "-m", "fast_markdown_mcp.server", f"/app/{NetworkConfig.MARKDOWN_DIR}"
                     ],
                     "env": {},
                     "disabled": False,
@@ -144,7 +140,7 @@ async def get_mcp_config():
                 }
             }
         }
-        logger.info("Returning hardcoded MCP server config (stdio/docker exec based)")
+        logger.info("Returning MCP server config with dynamic paths")
         return config
     except Exception as e:
         logger.error(f"Error generating config: {str(e)}", exc_info=True)
@@ -156,9 +152,9 @@ async def get_mcp_status():
     try:
         logger.info("Checking MCP server status")
 
-        # Get MCP host from environment variable or use default container name
-        mcp_host = os.environ.get("MCP_HOST", "mcp")
-        logger.info(f"Using MCP host: {mcp_host}")
+        # Use NetworkConfig for MCP host
+        mcp_host = NetworkConfig.MCP_HOST
+        logger.info(f"Using MCP host from config: {mcp_host}")
 
         # Try to connect to the MCP server
         try:

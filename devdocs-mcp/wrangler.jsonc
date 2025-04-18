@@ -2,10 +2,14 @@
   "$schema": "https://json.schemastore.org/wrangler.json",
   "name": "devdocs-mcp",
   "main": "src/index.ts",
-  "compatibility_date": "2025-03-10",
+  "compatibility_date": "2024-04-11",
   "compatibility_flags": [
-    "nodejs_compat"
+    "nodejs_compat",
+    "durable_object_alarms"
   ],
+  "site": {
+    "bucket": "static"
+  },
   "migrations": [
     {
       "new_sqlite_classes": [
@@ -17,19 +21,30 @@
   "durable_objects": {
     "bindings": [
       {
-        "class_name": "DevDocsMCP",
-        "name": "MCP_OBJECT"
+        "name": "MCP_OBJECT",
+        "class_name": "DevDocsMCP"
       }
     ]
   },
   "kv_namespaces": [
     {
       "binding": "OAUTH_KV",
-      "id": "ef78006d555d4d48bce416ecc707669d"
+      "id": "your-kv-namespace-id-here",
+      "preview_id": "your-preview-namespace-id-here"
     }
   ],
+  "vars": {
+    "NEXT_PUBLIC_BACKEND_URL": "http://localhost:24125"
+  },
   "assets": {
     "directory": "./static/",
     "binding": "ASSETS"
-  }
+  },
+  "bindings": [
+    {
+      "name": "DEVDOCS_API_URL",
+      "type": "plain_text",
+      "pattern": "http://localhost:24125"
+    }
+  ]
 }

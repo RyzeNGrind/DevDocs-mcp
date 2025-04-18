@@ -5,6 +5,7 @@
  * existing DevDocs Explorer data. You'll need to customize these functions
  * to access your documentation sources.
  */
+import config from './config.js';
 
 // Types for documentation data
 export interface DocSearchResult {
@@ -28,17 +29,23 @@ export interface CodeExample {
   description?: string;
 }
 
-// Default Dev API URL (update this to your actual backend URL)
-const DEFAULT_API_URL = 'http://localhost:24125';
-
 /**
  * Configure the API URL for the DevDocs backend
  */
 export class DocsIntegration {
   private apiUrl: string;
 
-  constructor(apiUrl: string = DEFAULT_API_URL) {
-    this.apiUrl = apiUrl;
+  constructor(apiUrl?: string) {
+    // Use provided URL or fall back to configured URL
+    this.apiUrl = apiUrl || config.api.docs.url;
+  }
+
+  /**
+   * Set the API URL for the integration
+   */
+  setApiUrl(url: string): void {
+    this.apiUrl = url;
+    console.log(`API URL set to: ${this.apiUrl}`);
   }
 
   /**
