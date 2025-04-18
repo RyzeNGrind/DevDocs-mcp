@@ -1,0 +1,9 @@
+{
+  "mcpServers": [
+    {
+      "name": "devdocs",
+      "type": "command",
+      "command": "npx mcp-remote https://devdocs-mcp.vidurshan-sribala.workers.dev/sse"
+    }
+  ]
+} 

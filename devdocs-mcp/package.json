@@ -1,0 +1,24 @@
+{
+  "name": "devdocs-mcp",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "deploy": "wrangler deploy",
+    "dev": "wrangler dev",
+    "start": "wrangler dev"
+  },
+  "dependencies": {
+    "@cloudflare/workers-oauth-provider": "^0.0.2",
+    "@modelcontextprotocol/sdk": "^1.7.0",
+    "agents": "^0.0.53",
+    "hono": "^4.7.4",
+    "zod": "^3.24.2",
+    "marked": "^12.0.0",
+    "showdown": "^2.1.0"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20250418.0",
+    "typescript": "^5.5.2",
+    "wrangler": "^4.12.0"
+  }
+} 
